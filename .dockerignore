@@ -1,0 +1,65 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README*.md
+*.md
+docs/
+
+# Development files
+.env*
+docker-compose*.yml
+Dockerfile*
+Makefile
+build-image.sh
+run-standalone.sh
+quick-deploy.sh
+
+# Node modules and Python cache
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+logs/
+temp/
+tmp/
+
+# Certificates (will be generated in container)
+cert.pem
+key.pem
+certs/
+
+# Test files
+test/
+tests/
+*_test.py
+*_test.go
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+jenkins/
+
+# Monitoring (will be added as volume if needed)
+monitoring/
+
+# Other Docker files
+docker-compose*.override.yml

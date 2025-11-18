@@ -1,0 +1,66 @@
+# LiteLLM OpenAI-to-Claude Proxy
+# 生产就绪的 Docker 镜像，支持直接 docker run 使用
+#
+# Usage:
+#   docker run -d -p 8443:8443 -e ANTHROPIC_API_KEY=your-key litellm-openai-proxy
+#
+FROM python:3.11-slim
+
+LABEL maintainer="LiteLLM Proxy"
+LABEL description="OpenAI API to Claude proxy service - Production Ready"
+LABEL version="1.0.0"
+LABEL org.opencontainers.image.source="https://github.com/your-org/litellm-openai-proxy"
+LABEL org.opencontainers.image.documentation="https://github.com/your-org/litellm-openai-proxy/README.md"
+
+# 设置非 root 用户
+RUN groupadd -r litellm && useradd -r -g litellm -s /bin/bash litellm
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    openssl \
+    curl \
+    gettext-base \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 安装 Python 依赖
+RUN pip3 install --no-cache-dir --upgrade pip \
+    && pip3 install --no-cache-dir 'litellm[proxy]==1.40.19' \
+    && pip3 cache purge
+
+# 创建必要的目录并设置权限
+RUN mkdir -p /app/certs /app/config /app/logs \
+    && chown -R litellm:litellm /app
+
+# ===== 复制配置文件和脚本 =====
+COPY config/proxy-config.yaml /app/config/proxy-config.yaml
+COPY scripts/entrypoint.sh /app/entrypoint.sh
+
+# 设置权限
+RUN chmod +x /app/entrypoint.sh \
+    && chown litellm:litellm /app/entrypoint.sh
+
+# 切换到非 root 用户
+USER litellm
+
+# 暴露端口
+EXPOSE 8443
+EXPOSE 443
+
+# 设置默认环境变量
+ENV PORT=8443
+ENV HOST=0.0.0.0
+ENV DEBUG=false
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -k -f https://localhost:${PORT}/health || exit 1
+
+# 设置启动点
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# 默认命令（可以被 docker run 的参数覆盖）
+CMD []

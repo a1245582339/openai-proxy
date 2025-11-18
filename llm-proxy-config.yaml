@@ -1,0 +1,42 @@
+model_list:
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/claude-sonnet-4
+      api_key: sk-Tm-YPyicdhex2efEZ-qiHg
+      api_base: https://litellm.kup-singapore-dev.metabit-trading.com/
+
+  # 添加更多模型映射
+  - model_name: gpt-4
+    litellm_params:
+      model: openai/claude-sonnet-4
+      api_key: sk-Tm-YPyicdhex2efEZ-qiHg
+      api_base: https://litellm.kup-singapore-dev.metabit-trading.com/
+
+  - model_name: gpt-5
+    litellm_params:
+      model: openai/claude-sonnet-4
+      api_key: sk-Tm-YPyicdhex2efEZ-qiHg
+      api_base: https://litellm.kup-singapore-dev.metabit-trading.com/
+
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: openai/claude-sonnet-4
+      api_key: sk-Tm-YPyicdhex2efEZ-qiHg
+      api_base: https://litellm.kup-singapore-dev.metabit-trading.com/
+
+# 服务器配置
+general_settings:
+  # 彻底禁用认证，模拟OpenAI API
+  master_key: null
+  disable_auth: true
+  # 启用CORS
+  enable_cors: true
+  # 模拟OpenAI响应格式
+  disable_spend_logs: true
+
+# LiteLLM 设置
+litellm_settings:
+  # 自动删除不支持的参数
+  drop_params: true
+  # 设置日志级别
+  set_verbose: true
