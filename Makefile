@@ -1,10 +1,11 @@
 # LiteLLM OpenAI-to-Claude Proxy - Makefile
 
-.PHONY: help build test run clean push
+.PHONY: help build build-base test run clean push
 
 # 变量定义
 IMAGE_NAME := litellm-openai-proxy
-VERSION := 1.0.0
+BASE_IMAGE := litellm-base
+VERSION := 1.0.3
 PORT := 8443
 
 # 默认目标
@@ -15,10 +16,20 @@ help: ## 显示帮助信息
 	@echo "可用命令:"
 	@awk 'BEGIN {FS = ":.*##"; printf ""} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-build: ## 构建 Docker 镜像
-	@echo "🔨 构建镜像 $(IMAGE_NAME):$(VERSION)..."
+build-base: ## 构建基础镜像（包含所有依赖）
+	@echo "🏗️  构建基础镜像 $(BASE_IMAGE):latest..."
+	./build-base.sh
+	@echo "✅ 基础镜像构建完成!"
+
+build: build-base ## 构建生产镜像（需要基础镜像）
+	@echo "🔨 构建生产镜像 $(IMAGE_NAME):$(VERSION)..."
+	./build-image.sh
+	@echo "✅ 生产镜像构建完成!"
+
+build-fast: ## 快速构建（假设基础镜像已存在）
+	@echo "⚡ 快速构建镜像 $(IMAGE_NAME):$(VERSION)..."
 	docker build -f Dockerfile.production -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
-	@echo "✅ 构建完成!"
+	@echo "✅ 快速构建完成!"
 
 test: build ## 构建并测试镜像
 	@echo "🧪 测试镜像..."
@@ -32,10 +43,11 @@ test: build ## 构建并测试镜像
 	@echo "✅ 测试完成"
 	@docker stop $(IMAGE_NAME)-test 2>/dev/null || true
 
-run: ## 运行容器 (需要设置 API_KEY 环境变量)
+run: ## 运行容器 (需要设置 API_KEY，可选设置 MODEL)
 	@if [ -z "$(API_KEY)" ]; then \
 		echo "❌ 错误: 请设置 API_KEY 环境变量"; \
 		echo "   使用方法: make run API_KEY=your-anthropic-api-key"; \
+		echo "   可选参数: make run API_KEY=xxx MODEL=claude-opus-4"; \
 		exit 1; \
 	fi
 	@echo "🚀 启动容器..."
@@ -43,9 +55,11 @@ run: ## 运行容器 (需要设置 API_KEY 环境变量)
 		--name $(IMAGE_NAME) \
 		-p $(PORT):$(PORT) \
 		-e ANTHROPIC_API_KEY=$(API_KEY) \
+		$(if $(MODEL),-e CLAUDE_MODEL=$(MODEL),) \
 		$(IMAGE_NAME):latest
 	@echo "✅ 容器已启动"
 	@echo "📡 访问地址: https://localhost:$(PORT)"
+	@if [ -n "$(MODEL)" ]; then echo "🤖 使用模型: $(MODEL)"; fi
 
 stop: ## 停止并删除容器
 	@echo "🛑 停止容器..."
@@ -62,6 +76,11 @@ clean: ## 清理镜像和容器
 	@docker rm $(IMAGE_NAME) 2>/dev/null || true
 	@docker rmi $(IMAGE_NAME):latest $(IMAGE_NAME):$(VERSION) 2>/dev/null || true
 	@echo "✅ 清理完成"
+
+clean-all: clean ## 清理所有镜像（包括基础镜像）
+	@echo "🧹 清理所有镜像..."
+	@docker rmi $(BASE_IMAGE):latest 2>/dev/null || true
+	@echo "✅ 完全清理完成"
 
 push: build ## 推送镜像到仓库
 	@echo "📤 推送镜像..."
@@ -86,6 +105,7 @@ dev-run: dev-build ## 开发模式运行
 	docker run --rm -it \
 		-p $(PORT):$(PORT) \
 		-e ANTHROPIC_API_KEY=$(API_KEY) \
+		$(if $(MODEL),-e CLAUDE_MODEL=$(MODEL),) \
 		-e DEBUG=true \
 		$(IMAGE_NAME):dev
 
@@ -98,4 +118,8 @@ status: ## 检查容器状态
 
 images: ## 显示相关镜像
 	@echo "📦 相关镜像:"
-	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
+	@echo "基础镜像:"
+	@docker images $(BASE_IMAGE) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || echo "  未找到基础镜像"
+	@echo ""
+	@echo "生产镜像:"
+	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || echo "  未找到生产镜像"

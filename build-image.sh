@@ -9,9 +9,10 @@ IMAGE_TAG="latest"
 REGISTRY="docker.io"  # 或者您的私有镜像仓库
 
 # 版本信息
-VERSION="1.0.0"
+VERSION="1.0.3"
 BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 VCS_REF=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BASE_IMAGE="litellm-base:latest"
 
 echo "🔨 构建 LiteLLM OpenAI-to-Claude 代理镜像"
 echo "========================================"
@@ -28,6 +29,28 @@ if ! command -v docker &> /dev/null; then
 fi
 
 echo "✅ Docker 环境检查完成"
+
+# 检查基础镜像是否存在
+if ! docker image inspect "${BASE_IMAGE}" &>/dev/null; then
+    echo ""
+    echo "⚠️  基础镜像 ${BASE_IMAGE} 不存在"
+    echo ""
+    read -p "🤔 是否自动构建基础镜像? [Y/n]: " build_base
+    if [[ ! $build_base =~ ^[Nn]$ ]]; then
+        echo "🏗️  开始构建基础镜像..."
+        ./build-base.sh
+        if [ $? -ne 0 ]; then
+            echo "❌ 基础镜像构建失败"
+            exit 1
+        fi
+    else
+        echo "❌ 需要基础镜像才能继续构建"
+        echo "   请运行: ./build-base.sh"
+        exit 1
+    fi
+else
+    echo "✅ 基础镜像检查通过: ${BASE_IMAGE}"
+fi
 echo ""
 
 # 清理旧的构建缓存（可选）

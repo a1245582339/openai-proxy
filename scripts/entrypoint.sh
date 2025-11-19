@@ -15,6 +15,7 @@ export PORT=${PORT:-8443}
 export HOST=${HOST:-0.0.0.0}
 export DEBUG=${DEBUG:-false}
 export ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+export CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5}
 export SSL_CERT_PATH=${SSL_CERT_PATH:-/app/certs/cert.pem}
 export SSL_KEY_PATH=${SSL_KEY_PATH:-/app/certs/key.pem}
 
@@ -22,6 +23,7 @@ echo "⚙️ 配置信息:"
 echo "   监听地址: ${HOST}:${PORT}"
 echo "   调试模式: ${DEBUG}"
 echo "   Claude API: ${ANTHROPIC_BASE_URL}"
+echo "   Claude 模型: ${CLAUDE_MODEL}"
 
 # 验证必需的环境变量
 if [ -z "$ANTHROPIC_API_KEY" ]; then
@@ -59,9 +61,9 @@ fi
 # 处理配置文件
 echo "🔧 生成代理配置..."
 CONFIG_TEMPLATE="/app/config/proxy-config.yaml"
-CONFIG_OUTPUT="/app/config/litellm-config.yaml"
+CONFIG_OUTPUT="/tmp/litellm-config.yaml"
 
-# 使用 envsubst 替换环境变量
+# 使用 envsubst 替换环境变量到临时目录（有写权限）
 envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_OUTPUT"
 
 if [ ! -f "$CONFIG_OUTPUT" ]; then
