@@ -43,9 +43,9 @@ This project is a **production-ready wrapper around [LiteLLM Proxy](https://gith
 │                 │ <------ │  (translation)   │ <------ │  • Alibaba/Qwen     │
 │                 │         │                  │         │  • Zhipu/GLM        │
 └─────────────────┘         └──────────────────┘         │  • AWS Bedrock      │
-                                                          │  • Azure OpenAI     │
-                                                          │  • 100+ more...     │
-                                                          └─────────────────────┘
+                                                         │  • Azure OpenAI     │
+                                                         │  • 100+ more...     │
+                                                         └─────────────────────┘
 ```
 
 **Key Components**:
@@ -110,10 +110,7 @@ model_list:
       api_key: ${GEMINI_API_KEY}
 ```
 
-Then start with:
-```bash
-GEMINI_API_KEY=your-key sudo -E bin/start_litellm_proxy.sh
-```
+Then start with: `GEMINI_API_KEY=your-key sudo -E bin/start_litellm_proxy.sh`
 
 Your OpenAI clients will now use Google Gemini instead!
 
@@ -183,21 +180,14 @@ This project supports **two startup methods**:
 # 1. Initial build (automatically builds base image)
 make build              # or ./build-image.sh
 
-# 2. Start service (must provide API_KEY and BASE_URL)
+# 2. Start service (automatically checks and prompts for /etc/hosts configuration)
 make run API_KEY=your-anthropic-api-key BASE_URL=https://api.anthropic.com/
 
-# 3. Or use Docker directly
-docker run -d \
-  --name litellm-proxy \
-  --cap-add=NET_BIND_SERVICE \
-  -p 443:443 \
-  -e ANTHROPIC_API_KEY=your-key \
-  -e ANTHROPIC_BASE_URL=https://api.anthropic.com/ \
-  litellm-openai-proxy
-
-# 4. Test service
+# 3. Test service
 curl -k https://localhost:443/v1/models
 ```
+
+**Note**: `make run` will automatically check if `/etc/hosts` is configured. If not, it will prompt you to configure it (requires sudo).
 
 **Two-tier Build Architecture**:
 - 🏗️ **Base Image** (`litellm-base`): Pre-installed system and Python dependencies, build once, share with team
@@ -208,10 +198,8 @@ curl -k https://localhost:443/v1/models
 ### Method 2: Shell Script Startup
 
 ```bash
-# 1. Start proxy service (requires root permission, must provide API_KEY and BASE_URL)
-ANTHROPIC_API_KEY=your-key \
-ANTHROPIC_BASE_URL=https://api.anthropic.com/ \
-sudo -E bin/start_litellm_proxy.sh
+# 1. Start proxy service (automatically checks and prompts for /etc/hosts configuration)
+ANTHROPIC_API_KEY=your-key ANTHROPIC_BASE_URL=https://api.anthropic.com/ sudo -E bin/start_litellm_proxy.sh
 
 # 2. Test service
 bin/test_proxy.sh
@@ -222,11 +210,44 @@ bin/stop_litellm_proxy.sh
 
 **Features**:
 - 📜 Uses native shell scripts
-- 🔧 Auto-installs dependencies (openssl, litellm)
+- 🔧 Auto-installs dependencies and checks /etc/hosts
 - 🔐 Auto-generates SSL certificates
 - 🌐 Listens on port 443, perfectly simulates OpenAI API
 - ⚠️ Requires root permission
 - 🛠️ Suitable for development and testing environments
+
+---
+
+## ⚙️ Important: /etc/hosts Configuration
+
+**⚠️ CRITICAL for MCP and many applications**: If your application or MCP server uses `api.openai.com` as the endpoint, `/etc/hosts` must be configured to redirect to localhost.
+
+**Good news**: Both startup methods (Docker and Shell Script) **automatically check and prompt** for /etc/hosts configuration!
+
+- 🐳 **Docker**: `make run` checks before starting container
+- 📜 **Shell Script**: `start_litellm_proxy.sh` checks during startup
+
+**Manual setup** (if needed):
+```bash
+# Automated (recommended):
+sudo bin/setup_hosts.sh
+
+# Or manual:
+echo "127.0.0.1  api.openai.com" | sudo tee -a /etc/hosts
+```
+
+**Why this is needed**:
+- Many MCP servers and applications use `api.openai.com` as the default endpoint
+- Without this, requests go to real OpenAI servers instead of your proxy
+- **This is the #1 reason proxies work on one machine but not another!**
+
+**Verify configuration**:
+```bash
+ping api.openai.com  # Should show 127.0.0.1
+curl -k https://api.openai.com:443/v1/models  # Should hit your proxy
+```
+
+**Alternative**: Configure your client to use `https://localhost:443/v1` directly (see Client Integration section).
 
 ---
 
@@ -270,17 +291,7 @@ This project maps OpenAI model requests to Claude models, supports configuring t
 - `claude-opus-4` - Highest performance
 - `claude-haiku-4` - Fast response, low cost
 
-**Usage Examples**:
-```bash
-# Shell script method - Use Opus 4 model
-ANTHROPIC_API_KEY=your-key \
-ANTHROPIC_BASE_URL=https://api.anthropic.com/ \
-CLAUDE_MODEL=claude-opus-4 \
-sudo -E bin/start_litellm_proxy.sh
-
-# Docker method
-make run API_KEY=your-key BASE_URL=https://api.anthropic.com/ MODEL=claude-opus-4
-```
+**Example**: To use a different model, set `CLAUDE_MODEL=claude-opus-4` environment variable or `MODEL=claude-opus-4` parameter (see Configuration section).
 
 ## 📁 Project Structure
 
@@ -351,34 +362,42 @@ ps aux | grep litellm
 
 ---
 
-## 🚀 Quick Start
-
-### Method 1: Docker Container Startup (✅ Recommended)
-
-```bash
-# Quick start
-git clone <repo> && cd openai-proxy
-make build
-make run API_KEY=your-key BASE_URL=https://api.anthropic.com/
-
-# Test
-curl -k https://localhost:443/v1/models
-```
-
-### Method 2: Shell Script Startup
-
-```bash
-# Clone and start
-git clone <repo> && cd openai-proxy
-ANTHROPIC_API_KEY=your-key \
-ANTHROPIC_BASE_URL=https://api.anthropic.com/ \
-sudo -E bin/start_litellm_proxy.sh
-
-# Test
-curl -k https://localhost:443/v1/models
-```
-
 ## 🔧 Troubleshooting
+
+### Proxy Running But Not Receiving Requests
+
+**Symptom**: Proxy starts successfully but no requests appear in logs when using MCP servers or other clients.
+
+**Quick Diagnosis**:
+```bash
+# Run automated diagnostic script
+bin/diagnose_proxy.sh
+```
+
+This script will automatically check:
+- Proxy running status
+- Port listening
+- Direct connectivity
+- SSL certificates
+- MCP configuration
+
+**Quick Checklist**:
+1. Test direct connection: `curl -k https://localhost:443/v1/models`
+2. Check client config: Ensure `OPENAI_BASE_URL=https://localhost:443/v1`
+3. Disable SSL verification: Set `NODE_TLS_REJECT_UNAUTHORIZED=0` (Node.js clients)
+4. Restart client application after config changes
+5. Monitor logs: `docker logs -f litellm-proxy`
+
+📖 **See detailed troubleshooting guide**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+This guide covers:
+- Step-by-step diagnostic procedures
+- SSL certificate configuration
+- MCP server setup
+- Network routing checks
+- Different machine setup issues
+
+---
 
 ### Error: 405 Method Not Allowed
 
@@ -439,47 +458,12 @@ The `proxy-config.yaml` should use `openai/${CLAUDE_MODEL}` as the model prefix.
 
 ---
 
-### Container Won't Start - Missing Environment Variables
-
-**Symptom**:
-```
-❌ Error: Missing required environment variable ANTHROPIC_BASE_URL
-```
-
-**Solution**:
-
-Both `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are required:
-
-```bash
-# Docker method
-make run API_KEY=your-key BASE_URL=https://api.anthropic.com/
-
-# Or Docker directly
-docker run -d \
-  --name litellm-proxy \
-  --cap-add=NET_BIND_SERVICE \
-  -p 443:443 \
-  -e ANTHROPIC_API_KEY=your-key \
-  -e ANTHROPIC_BASE_URL=https://api.anthropic.com/ \
-  litellm-openai-proxy
-
-# Shell script method
-ANTHROPIC_API_KEY=your-key \
-ANTHROPIC_BASE_URL=https://api.anthropic.com/ \
-sudo -E bin/start_litellm_proxy.sh
-```
-
----
-
-### Check Logs
-
-**Docker container logs**:
-```bash
-docker logs -f litellm-proxy
-```
-
-**Shell script logs**:
-Check terminal output or system logs where the script is running.
+**Other Common Issues**: See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for:
+- Missing environment variables
+- SSL certificate errors
+- Port binding issues
+- Firewall configuration
+- And more...
 
 ---
 
@@ -488,6 +472,7 @@ Check terminal output or system logs where the script is running.
 - **Docker Deployment Guide**: [README-Production.md](README-Production.md)
 - **Configuration File**: See `proxy-config.yaml` (unified config file, supports environment variables)
 - **Model Naming Guide**: [docs/MODEL_NAMING_GUIDE.md](docs/MODEL_NAMING_GUIDE.md)
+- **Troubleshooting Guide**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Comprehensive guide for diagnosing and fixing common issues
 
 ## ⚙️ Configuration
 
@@ -503,40 +488,33 @@ Project uses unified config file `proxy-config.yaml`, supports dynamic configura
 **Configuration Examples**:
 
 ```bash
-# Shell script startup method - Set environment variables
-ANTHROPIC_API_KEY="your-api-key" \
-ANTHROPIC_BASE_URL="https://api.anthropic.com/" \
-CLAUDE_MODEL="claude-sonnet-4-5" \
-DEBUG="false" \
-sudo -E bin/start_litellm_proxy.sh
-```
-
-```bash
-# Docker container startup method - Pass environment variables
-docker run -d \
-  --name litellm-proxy \
-  --cap-add=NET_BIND_SERVICE \
-  -p 443:443 \
-  -e ANTHROPIC_API_KEY="your-api-key" \
-  -e ANTHROPIC_BASE_URL="https://api.anthropic.com/" \
-  -e CLAUDE_MODEL="claude-opus-4" \
-  litellm-openai-proxy
-
-# Or use Makefile
+# Docker method (recommended):
 make run API_KEY=your-api-key BASE_URL=https://api.anthropic.com/ MODEL=claude-opus-4
+
+# Shell script method:
+ANTHROPIC_API_KEY=your-api-key \
+ANTHROPIC_BASE_URL=https://api.anthropic.com/ \
+CLAUDE_MODEL=claude-sonnet-4-5 \
+sudo -E bin/start_litellm_proxy.sh
 ```
 
 ---
 
 ## 🎯 Summary
 
-This project provides **two startup methods**:
+**Two startup methods** available:
 
-| Startup Method | Use Case | Port | Recommendation |
-|---------|---------|------|-------|
-| 🐳 **Docker Container** | Production, team collaboration | 443 | ✅ **Recommended** |
-| 📜 **Shell Script** | Development, local debugging | 443 | Optional |
+| Method | Use Case | OS Support | Key Feature |
+|--------|----------|------------|-------------|
+| 🐳 **Docker** | Production | Linux, macOS, Windows | ✅ Recommended - Isolated & portable |
+| 📜 **Shell Script** | Development | Linux, macOS, Windows (WSL) | Auto-configures /etc/hosts |
 
-> 💡 **Docker container startup is recommended** - more secure, reliable, and easier to maintain!
+**⚠️ IMPORTANT**: For MCP servers and most applications, configure `/etc/hosts`:
+```bash
+sudo bin/setup_hosts.sh  # Automated setup
+# or manually: echo "127.0.0.1  api.openai.com" | sudo tee -a /etc/hosts
+```
+
+> 💡 **Tip**: Missing `/etc/hosts` configuration is the #1 reason proxies work on one machine but not another!
 
 Either method allows any OpenAI application to seamlessly use Claude! 🎉

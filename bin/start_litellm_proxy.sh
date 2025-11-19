@@ -87,6 +87,19 @@ if [ ! -f "$SSL_CERT" ] || [ ! -f "$SSL_KEY" ]; then
     echo "✅ SSL certificate generation complete"
 fi
 
+# Check and configure /etc/hosts for domain redirection
+if ! grep -q "^127.0.0.1.*api\.openai\.com" /etc/hosts 2>/dev/null; then
+    # Run setup_hosts.sh to configure
+    "$(dirname "$0")/setup_hosts.sh"
+
+    # If still not configured after setup, allow continuation
+    if ! grep -q "^127.0.0.1.*api\.openai\.com" /etc/hosts 2>/dev/null; then
+        echo ""
+        read -p "⚠️  Continuing without hosts configuration. Press Enter to proceed..."
+        echo ""
+    fi
+fi
+
 # Generate temporary config file (substitute environment variables)
 echo "🔧 Generating config file (substituting environment variables)..."
 TEMP_CONFIG="/tmp/litellm-proxy-config-$$.yaml"

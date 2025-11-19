@@ -57,6 +57,10 @@ run: ## Run container (requires API_KEY and BASE_URL, optional MODEL)
 		echo "   Optional: make run API_KEY=xxx BASE_URL=xxx MODEL=claude-opus-4"; \
 		exit 1; \
 	fi
+	@# Check and setup /etc/hosts
+	@if ! grep -q "^127.0.0.1.*api\.openai\.com" /etc/hosts 2>/dev/null; then \
+		./bin/setup_hosts.sh || true; \
+	fi
 	@echo "🚀 Starting container..."
 	docker run -d \
 		--name $(IMAGE_NAME) \
