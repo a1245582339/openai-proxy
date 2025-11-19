@@ -1,70 +1,67 @@
 #!/bin/bash
-# Docker 镜像构建和发布脚本
+# Docker Image Build and Release Script
 
 set -e
 
-# 镜像配置
+# Image configuration
 IMAGE_NAME="litellm-openai-proxy"
 IMAGE_TAG="latest"
-REGISTRY="docker.io"  # 或者您的私有镜像仓库
+REGISTRY="docker.io"  # or your private registry
 
-# 版本信息
+# Version information
 VERSION="1.0.3"
 BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 VCS_REF=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BASE_IMAGE="litellm-base:latest"
 
-echo "🔨 构建 LiteLLM OpenAI-to-Claude 代理镜像"
-echo "========================================"
-echo "📦 镜像名称: ${IMAGE_NAME}"
-echo "🏷️  镜像标签: ${IMAGE_TAG}"
-echo "📅 构建时间: ${BUILD_DATE}"
+echo "🔨 Building LiteLLM OpenAI-to-Claude Proxy Image"
+echo "================================================"
+echo "📦 Image name: ${IMAGE_NAME}"
+echo "🏷️  Image tag: ${IMAGE_TAG}"
+echo "📅 Build time: ${BUILD_DATE}"
 echo "🔗 Git Hash: ${VCS_REF}"
 echo ""
 
-# 检查 Docker 环境
+# Check Docker environment
 if ! command -v docker &> /dev/null; then
-    echo "❌ 错误: Docker 未安装"
+    echo "❌ Error: Docker not installed"
     exit 1
 fi
 
-echo "✅ Docker 环境检查完成"
+echo "✅ Docker environment check complete"
 
-# 检查基础镜像是否存在
+# Check if base image exists
 if ! docker image inspect "${BASE_IMAGE}" &>/dev/null; then
     echo ""
-    echo "⚠️  基础镜像 ${BASE_IMAGE} 不存在"
+    echo "⚠️  Base image ${BASE_IMAGE} not found"
     echo ""
-    read -p "🤔 是否自动构建基础镜像? [Y/n]: " build_base
+    read -p "🤔 Build base image automatically? [Y/n]: " build_base
     if [[ ! $build_base =~ ^[Nn]$ ]]; then
-        echo "🏗️  开始构建基础镜像..."
+        echo "🏗️  Building base image..."
         ./build-base.sh
         if [ $? -ne 0 ]; then
-            echo "❌ 基础镜像构建失败"
+            echo "❌ Base image build failed"
             exit 1
         fi
     else
-        echo "❌ 需要基础镜像才能继续构建"
-        echo "   请运行: ./build-base.sh"
+        echo "❌ Base image required to continue"
+        echo "   Please run: ./build-base.sh"
         exit 1
     fi
 else
-    echo "✅ 基础镜像检查通过: ${BASE_IMAGE}"
+    echo "✅ Base image check passed: ${BASE_IMAGE}"
 fi
 echo ""
 
-# 清理旧的构建缓存（可选）
-read -p "🗑️  是否清理 Docker 构建缓存? [y/N]: " clean_cache
-if [[ $clean_cache =~ ^[Yy]$ ]]; then
-    echo "🧹 清理构建缓存..."
-    docker builder prune -f
-    echo "✅ 缓存清理完成"
-fi
+# Clean old build cache
+echo "🧹 Cleaning build cache..."
+docker builder prune -f
+echo "✅ Cache cleanup complete"
 
 echo ""
 
-# 构建镜像
-echo "🔨 开始构建镜像..."
+# Build image
+echo "🔨 Building image..."
 docker build \
     -f Dockerfile.production \
     -t "${IMAGE_NAME}:${IMAGE_TAG}" \
@@ -76,100 +73,77 @@ docker build \
     .
 
 if [ $? -eq 0 ]; then
-    echo "✅ 镜像构建成功!"
+    echo "✅ Image built successfully!"
 else
-    echo "❌ 镜像构建失败"
+    echo "❌ Image build failed"
     exit 1
 fi
 
 echo ""
 
-# 显示镜像信息
-echo "📋 镜像信息:"
+# Display image information
+echo "📋 Image information:"
 docker images "${IMAGE_NAME}" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
 
 echo ""
 
-# 测试镜像
-echo "🧪 测试镜像..."
-echo "   启动测试容器..."
+# Test image
+echo "🧪 Testing image..."
+echo "   Starting test container..."
 
-# 使用测试 API Key 启动容器
+# Start container with test API key
 TEST_API_KEY="sk-test-key-for-build-verification"
+TEST_BASE_URL="https://api.anthropic.com/"
 CONTAINER_ID=$(docker run -d \
     --name "${IMAGE_NAME}-test" \
     -p 18443:8443 \
     -e ANTHROPIC_API_KEY="${TEST_API_KEY}" \
+    -e ANTHROPIC_BASE_URL="${TEST_BASE_URL}" \
     -e DEBUG=true \
     "${IMAGE_NAME}:${IMAGE_TAG}")
 
-echo "   容器 ID: ${CONTAINER_ID:0:12}"
+echo "   Container ID: ${CONTAINER_ID:0:12}"
 
-# 等待容器启动
-echo "   等待服务启动..."
+# Wait for container to start
+echo "   Waiting for service to start..."
 sleep 10
 
-# 检查容器状态
+# Check container status
 if docker ps | grep -q "${IMAGE_NAME}-test"; then
-    echo "✅ 测试容器启动成功"
+    echo "✅ Test container started successfully"
 else
-    echo "❌ 测试容器启动失败"
+    echo "❌ Test container failed to start"
     docker logs "${IMAGE_NAME}-test"
     docker rm -f "${IMAGE_NAME}-test" 2>/dev/null || true
     exit 1
 fi
 
-# 清理测试容器
-echo "   清理测试容器..."
+# Clean up test container
+echo "   Cleaning up test container..."
 docker stop "${IMAGE_NAME}-test" >/dev/null 2>&1 || true
 docker rm "${IMAGE_NAME}-test" >/dev/null 2>&1 || true
 
-echo "✅ 镜像测试通过"
+echo "✅ Image test passed"
 echo ""
-
-# 询问是否推送到仓库
-if [ "${REGISTRY}" != "local" ]; then
-    read -p "📤 是否推送镜像到仓库 ${REGISTRY}? [y/N]: " push_image
-    if [[ $push_image =~ ^[Yy]$ ]]; then
-        echo "🚀 推送镜像到仓库..."
-
-        # 标记镜像
-        docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-        docker tag "${IMAGE_NAME}:${VERSION}" "${REGISTRY}/${IMAGE_NAME}:${VERSION}"
-        docker tag "${IMAGE_NAME}:latest" "${REGISTRY}/${IMAGE_NAME}:latest"
-
-        # 推送镜像
-        docker push "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-        docker push "${REGISTRY}/${IMAGE_NAME}:${VERSION}"
-        docker push "${REGISTRY}/${IMAGE_NAME}:latest"
-
-        echo "✅ 镜像推送完成"
-        echo ""
-        echo "📦 镜像地址:"
-        echo "   ${REGISTRY}/${IMAGE_NAME}:latest"
-        echo "   ${REGISTRY}/${IMAGE_NAME}:${VERSION}"
-    fi
-fi
-
+echo "🎉 Build complete!"
 echo ""
-echo "🎉 构建完成!"
+echo "📖 Usage:"
+echo "   # Using Makefile (recommended)"
+echo "   make run API_KEY=your-key BASE_URL=https://api.anthropic.com/"
 echo ""
-echo "📖 使用方法:"
-echo "   # 基本使用"
-echo "   docker run -d -p 8443:8443 -e ANTHROPIC_API_KEY=your-key ${IMAGE_NAME}"
-echo ""
-echo "   # 使用标准端口 (需要特权)"
-echo "   docker run -d -p 443:443 -e ANTHROPIC_API_KEY=your-key -e PORT=443 ${IMAGE_NAME}"
-echo ""
-echo "   # 启用调试模式"
-echo "   docker run -d -p 8443:8443 -e ANTHROPIC_API_KEY=your-key -e DEBUG=true ${IMAGE_NAME}"
-echo ""
-echo "   # 自定义 Claude API 地址"
-echo "   docker run -d -p 8443:8443 \\"
+echo "   # Or use Docker directly (requires API_KEY and BASE_URL)"
+echo "   docker run -d --cap-add=NET_BIND_SERVICE -p 443:443 \\"
 echo "     -e ANTHROPIC_API_KEY=your-key \\"
-echo "     -e ANTHROPIC_BASE_URL=https://your-claude-proxy.com \\"
+echo "     -e ANTHROPIC_BASE_URL=https://api.anthropic.com/ \\"
 echo "     ${IMAGE_NAME}"
 echo ""
-echo "🧪 测试命令:"
-echo "   curl -k https://localhost:8443/v1/models"
+echo "   # Enable debug mode"
+echo "   docker run -d --cap-add=NET_BIND_SERVICE -p 443:443 \\"
+echo "     -e ANTHROPIC_API_KEY=your-key \\"
+echo "     -e ANTHROPIC_BASE_URL=https://api.anthropic.com/ \\"
+echo "     -e DEBUG=true \\"
+echo "     ${IMAGE_NAME}"
+echo ""
+echo "🧪 Test command:"
+echo "   curl -k https://localhost:443/v1/models"
 echo ""

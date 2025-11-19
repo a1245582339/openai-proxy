@@ -1,97 +1,97 @@
 #!/bin/bash
-# 工具安装脚本
-# 自动检测并安装所需工具：litellm[proxy] 和 openssl
+# Tools Installation Script
+# Automatically detect and install required tools: litellm[proxy] and openssl
 
 set -e
 
-echo "🔍 检查所需工具..."
+echo "🔍 Checking required tools..."
 
-# 检查 openssl
+# Check openssl
 if ! command -v openssl &> /dev/null; then
-    echo "⚠️  未检测到 openssl，需要安装"
+    echo "⚠️  openssl not detected, installation required"
     if [ "$EUID" -eq 0 ]; then
-        # 已经是 root，直接安装
+        # Already root, install directly
         if command -v apt-get &> /dev/null; then
             apt-get update && apt-get install -y openssl || {
-                echo "❌ 安装失败，请手动运行: sudo apt-get install openssl"
+                echo "❌ Installation failed, please run manually: sudo apt-get install openssl"
                 exit 1
             }
         elif command -v yum &> /dev/null; then
             yum install -y openssl || {
-                echo "❌ 安装失败，请手动运行: sudo yum install openssl"
+                echo "❌ Installation failed, please run manually: sudo yum install openssl"
                 exit 1
             }
         elif command -v dnf &> /dev/null; then
             dnf install -y openssl || {
-                echo "❌ 安装失败，请手动运行: sudo dnf install openssl"
+                echo "❌ Installation failed, please run manually: sudo dnf install openssl"
                 exit 1
             }
         else
-            echo "❌ 未找到包管理器，请手动安装 openssl"
+            echo "❌ Package manager not found, please install openssl manually"
             exit 1
         fi
-        echo "✅ openssl 安装完成"
+        echo "✅ openssl installation complete"
     else
-        # 需要 sudo 权限安装
+        # Need sudo privileges
         if command -v apt-get &> /dev/null; then
             sudo apt-get update && sudo apt-get install -y openssl || {
-                echo "❌ 安装失败，请手动运行: sudo apt-get install openssl"
+                echo "❌ Installation failed, please run manually: sudo apt-get install openssl"
                 exit 1
             }
         elif command -v yum &> /dev/null; then
             sudo yum install -y openssl || {
-                echo "❌ 安装失败，请手动运行: sudo yum install openssl"
+                echo "❌ Installation failed, please run manually: sudo yum install openssl"
                 exit 1
             }
         elif command -v dnf &> /dev/null; then
             sudo dnf install -y openssl || {
-                echo "❌ 安装失败，请手动运行: sudo dnf install openssl"
+                echo "❌ Installation failed, please run manually: sudo dnf install openssl"
                 exit 1
             }
         else
-            echo "❌ 未找到包管理器，请手动安装 openssl"
+            echo "❌ Package manager not found, please install openssl manually"
             exit 1
         fi
-        echo "✅ openssl 安装完成"
+        echo "✅ openssl installation complete"
     fi
 else
-    echo "✅ openssl 已安装"
+    echo "✅ openssl already installed"
 fi
 
-# 检查 litellm
+# Check litellm
 NEED_INSTALL_LITELLM=false
 
-# 检测 litellm 是否可用
+# Check if litellm is available
 if ! command -v litellm &> /dev/null && ! python3 -c "import litellm" 2>/dev/null; then
-    echo "⚠️  未检测到 litellm，需要安装"
+    echo "⚠️  litellm not detected, installation required"
     NEED_INSTALL_LITELLM=true
 fi
 
-# 检测 backoff 模块（proxy 功能必需）
+# Check backoff module (required for proxy functionality)
 if ! python3 -c "import backoff" 2>/dev/null; then
-    echo "⚠️  未检测到 backoff 模块（proxy 功能依赖），需要安装完整版"
+    echo "⚠️  backoff module not detected (required for proxy), full version installation needed"
     NEED_INSTALL_LITELLM=true
 fi
 
-# 如果需要安装 litellm
+# Install litellm if needed
 if [ "$NEED_INSTALL_LITELLM" = true ]; then
-    echo "📦 正在安装 litellm[proxy]..."
+    echo "📦 Installing litellm[proxy]..."
     if [ "$EUID" -eq 0 ]; then
-        # 已经是 root，直接安装
+        # Already root, install directly
         pip3 install 'litellm[proxy]' || {
-            echo "❌ 安装失败，请手动运行: sudo pip3 install 'litellm[proxy]'"
+            echo "❌ Installation failed, please run manually: sudo pip3 install 'litellm[proxy]'"
             exit 1
         }
     else
-        # 需要 sudo 权限安装
+        # Need sudo privileges
         sudo pip3 install 'litellm[proxy]' || {
-            echo "❌ 安装失败，请手动运行: sudo pip3 install 'litellm[proxy]'"
+            echo "❌ Installation failed, please run manually: sudo pip3 install 'litellm[proxy]'"
             exit 1
         }
     fi
-    echo "✅ LiteLLM 安装完成"
+    echo "✅ LiteLLM installation complete"
 else
-    echo "✅ LiteLLM 依赖已就绪"
+    echo "✅ LiteLLM dependencies ready"
 fi
 
 echo ""

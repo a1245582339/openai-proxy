@@ -2,124 +2,141 @@
 
 .PHONY: help build build-base test run clean push
 
-# 变量定义
+# Variable definitions
 IMAGE_NAME := litellm-openai-proxy
 BASE_IMAGE := litellm-base
 VERSION := 1.0.3
-PORT := 8443
+PORT := 443
 
-# 默认目标
-help: ## 显示帮助信息
+# Default target
+help: ## Display help information
 	@echo "🚀 LiteLLM OpenAI-to-Claude Proxy"
 	@echo "================================="
 	@echo ""
-	@echo "可用命令:"
+	@echo "Available commands:"
 	@awk 'BEGIN {FS = ":.*##"; printf ""} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-build-base: ## 构建基础镜像（包含所有依赖）
-	@echo "🏗️  构建基础镜像 $(BASE_IMAGE):latest..."
+build-base: ## Build base image (includes all dependencies)
+	@echo "🏗️  Building base image $(BASE_IMAGE):latest..."
 	./build-base.sh
-	@echo "✅ 基础镜像构建完成!"
+	@echo "✅ Base image build complete!"
 
-build: build-base ## 构建生产镜像（需要基础镜像）
-	@echo "🔨 构建生产镜像 $(IMAGE_NAME):$(VERSION)..."
+build: build-base ## Build production image (requires base image)
+	@echo "🔨 Building production image $(IMAGE_NAME):$(VERSION)..."
 	./build-image.sh
-	@echo "✅ 生产镜像构建完成!"
+	@echo "✅ Production image build complete!"
 
-build-fast: ## 快速构建（假设基础镜像已存在）
-	@echo "⚡ 快速构建镜像 $(IMAGE_NAME):$(VERSION)..."
+build-fast: ## Fast build (assumes base image exists)
+	@echo "⚡ Fast building image $(IMAGE_NAME):$(VERSION)..."
 	docker build -f Dockerfile.production -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
-	@echo "✅ 快速构建完成!"
+	@echo "✅ Fast build complete!"
 
-test: build ## 构建并测试镜像
-	@echo "🧪 测试镜像..."
+test: build ## Build and test image
+	@echo "🧪 Testing image..."
 	@docker run --rm \
 		--name $(IMAGE_NAME)-test \
 		-p $(PORT):$(PORT) \
 		-e ANTHROPIC_API_KEY=sk-test-key \
+		-e ANTHROPIC_BASE_URL=https://api.anthropic.com/ \
 		-e DEBUG=true \
 		$(IMAGE_NAME):latest &
 	@sleep 10
-	@echo "✅ 测试完成"
+	@echo "✅ Test complete"
 	@docker stop $(IMAGE_NAME)-test 2>/dev/null || true
 
-run: ## 运行容器 (需要设置 API_KEY，可选设置 MODEL)
+run: ## Run container (requires API_KEY and BASE_URL, optional MODEL)
 	@if [ -z "$(API_KEY)" ]; then \
-		echo "❌ 错误: 请设置 API_KEY 环境变量"; \
-		echo "   使用方法: make run API_KEY=your-anthropic-api-key"; \
-		echo "   可选参数: make run API_KEY=xxx MODEL=claude-opus-4"; \
+		echo "❌ Error: Please set API_KEY environment variable"; \
+		echo "   Usage: make run API_KEY=your-key BASE_URL=your-url"; \
+		echo "   Optional: make run API_KEY=xxx BASE_URL=xxx MODEL=claude-opus-4"; \
 		exit 1; \
 	fi
-	@echo "🚀 启动容器..."
+	@if [ -z "$(BASE_URL)" ]; then \
+		echo "❌ Error: Please set BASE_URL environment variable"; \
+		echo "   Usage: make run API_KEY=your-key BASE_URL=your-url"; \
+		echo "   Optional: make run API_KEY=xxx BASE_URL=xxx MODEL=claude-opus-4"; \
+		exit 1; \
+	fi
+	@echo "🚀 Starting container..."
 	docker run -d \
 		--name $(IMAGE_NAME) \
+		--cap-add=NET_BIND_SERVICE \
 		-p $(PORT):$(PORT) \
+		-e PORT=$(PORT) \
 		-e ANTHROPIC_API_KEY=$(API_KEY) \
+		-e ANTHROPIC_BASE_URL=$(BASE_URL) \
 		$(if $(MODEL),-e CLAUDE_MODEL=$(MODEL),) \
 		$(IMAGE_NAME):latest
-	@echo "✅ 容器已启动"
-	@echo "📡 访问地址: https://localhost:$(PORT)"
-	@if [ -n "$(MODEL)" ]; then echo "🤖 使用模型: $(MODEL)"; fi
+	@echo "✅ Container started"
+	@echo "📡 Access URL: https://localhost:$(PORT)"
+	@echo "🌍 Base URL: $(BASE_URL)"
+	@if [ -n "$(MODEL)" ]; then echo "🤖 Using model: $(MODEL)"; fi
 
-stop: ## 停止并删除容器
-	@echo "🛑 停止容器..."
+stop: ## Stop and remove container
+	@echo "🛑 Stopping container..."
 	@docker stop $(IMAGE_NAME) 2>/dev/null || true
 	@docker rm $(IMAGE_NAME) 2>/dev/null || true
-	@echo "✅ 容器已停止"
+	@echo "✅ Container stopped"
 
-logs: ## 查看容器日志
+logs: ## View container logs
 	@docker logs -f $(IMAGE_NAME)
 
-clean: ## 清理镜像和容器
-	@echo "🧹 清理资源..."
+clean: ## Clean images and containers
+	@echo "🧹 Cleaning resources..."
 	@docker stop $(IMAGE_NAME) 2>/dev/null || true
 	@docker rm $(IMAGE_NAME) 2>/dev/null || true
 	@docker rmi $(IMAGE_NAME):latest $(IMAGE_NAME):$(VERSION) 2>/dev/null || true
-	@echo "✅ 清理完成"
+	@echo "✅ Cleanup complete"
 
-clean-all: clean ## 清理所有镜像（包括基础镜像）
-	@echo "🧹 清理所有镜像..."
+clean-all: clean ## Clean all images (including base image)
+	@echo "🧹 Cleaning all images..."
 	@docker rmi $(BASE_IMAGE):latest 2>/dev/null || true
-	@echo "✅ 完全清理完成"
+	@echo "✅ Complete cleanup finished"
 
-push: build ## 推送镜像到仓库
-	@echo "📤 推送镜像..."
+push: build ## Push image to registry
+	@echo "📤 Pushing image..."
 	docker tag $(IMAGE_NAME):latest docker.io/$(IMAGE_NAME):latest
 	docker tag $(IMAGE_NAME):$(VERSION) docker.io/$(IMAGE_NAME):$(VERSION)
 	docker push docker.io/$(IMAGE_NAME):latest
 	docker push docker.io/$(IMAGE_NAME):$(VERSION)
-	@echo "✅ 推送完成"
+	@echo "✅ Push complete"
 
-shell: ## 进入运行中的容器
+shell: ## Enter running container
 	@docker exec -it $(IMAGE_NAME) /bin/bash
 
-# 开发相关命令
-dev-build: ## 快速开发构建（无缓存）
+# Development commands
+dev-build: ## Quick dev build (no cache)
 	docker build --no-cache -f Dockerfile.production -t $(IMAGE_NAME):dev .
 
-dev-run: dev-build ## 开发模式运行
+dev-run: dev-build ## Run in dev mode
 	@if [ -z "$(API_KEY)" ]; then \
-		echo "❌ 错误: 请设置 API_KEY 环境变量"; \
+		echo "❌ Error: Please set API_KEY environment variable"; \
+		exit 1; \
+	fi
+	@if [ -z "$(BASE_URL)" ]; then \
+		echo "❌ Error: Please set BASE_URL environment variable"; \
 		exit 1; \
 	fi
 	docker run --rm -it \
 		-p $(PORT):$(PORT) \
+		-e PORT=$(PORT) \
 		-e ANTHROPIC_API_KEY=$(API_KEY) \
+		-e ANTHROPIC_BASE_URL=$(BASE_URL) \
 		$(if $(MODEL),-e CLAUDE_MODEL=$(MODEL),) \
 		-e DEBUG=true \
 		$(IMAGE_NAME):dev
 
-# 快捷命令
-all: clean build test ## 完整的构建和测试流程
+# Shortcuts
+all: clean build test ## Complete build and test workflow
 
-status: ## 检查容器状态
-	@echo "📊 容器状态:"
+status: ## Check container status
+	@echo "📊 Container status:"
 	@docker ps -a --filter name=$(IMAGE_NAME) --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-images: ## 显示相关镜像
-	@echo "📦 相关镜像:"
-	@echo "基础镜像:"
-	@docker images $(BASE_IMAGE) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || echo "  未找到基础镜像"
+images: ## Display related images
+	@echo "📦 Related images:"
+	@echo "Base images:"
+	@docker images $(BASE_IMAGE) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || echo "  Base image not found"
 	@echo ""
-	@echo "生产镜像:"
-	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || echo "  未找到生产镜像"
+	@echo "Production images:"
+	@docker images $(IMAGE_NAME) --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" 2>/dev/null || echo "  Production image not found"

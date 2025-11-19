@@ -1,24 +1,24 @@
 #!/bin/bash
-# LiteLLM 代理服务停止脚本
+# LiteLLM Proxy Service Stop Script
 
-echo "🛑 停止 LiteLLM 代理服务..."
+echo "🛑 Stopping LiteLLM Proxy Service..."
 
-# 查找并杀死 litellm 进程
+# Find and kill litellm processes
 if pgrep -f "litellm" > /dev/null; then
-    echo "找到 LiteLLM 进程，正在停止..."
+    echo "Found LiteLLM process, stopping..."
     pkill -f "litellm"
     sleep 2
 
-    # 强制杀死如果还在运行
+    # Force kill if still running
     if pgrep -f "litellm" > /dev/null; then
-        echo "强制停止 LiteLLM 进程..."
+        echo "Force stopping LiteLLM process..."
         pkill -9 -f "litellm"
     fi
 
-    echo "✅ LiteLLM 代理服务已停止"
+    echo "✅ LiteLLM Proxy Service stopped"
 else
-    echo "⚠️  未找到运行中的 LiteLLM 进程"
+    echo "⚠️  No running LiteLLM process found"
 fi
 
-echo "🔍 当前进程状态:"
-ps aux | grep litellm | grep -v grep || echo "   无 LiteLLM 进程运行"
+echo "🔍 Current process status:"
+ps aux | grep litellm | grep -v grep || echo "   No LiteLLM processes running"

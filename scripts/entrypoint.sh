@@ -1,5 +1,5 @@
 #!/bin/bash
-# LiteLLM Proxy 生产环境启动脚本
+# LiteLLM Proxy Production Environment Startup Script
 
 set -e
 
@@ -10,40 +10,58 @@ echo "🐍 Python: $(python3 --version)"
 echo "⚡ LiteLLM: $(python3 -c 'import litellm; print(litellm.__version__)')"
 echo ""
 
-# 设置默认环境变量
-export PORT=${PORT:-8443}
+# Set default environment variables
+export PORT=${PORT:-443}
 export HOST=${HOST:-0.0.0.0}
 export DEBUG=${DEBUG:-false}
-export ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
 export CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5}
 export SSL_CERT_PATH=${SSL_CERT_PATH:-/app/certs/cert.pem}
 export SSL_KEY_PATH=${SSL_KEY_PATH:-/app/certs/key.pem}
 
-echo "⚙️ 配置信息:"
-echo "   监听地址: ${HOST}:${PORT}"
-echo "   调试模式: ${DEBUG}"
-echo "   Claude API: ${ANTHROPIC_BASE_URL}"
-echo "   Claude 模型: ${CLAUDE_MODEL}"
+echo "⚙️ Configuration:"
+echo "   Listen address: ${HOST}:${PORT}"
+echo "   Debug mode: ${DEBUG}"
+echo "   Claude model: ${CLAUDE_MODEL}"
 
-# 验证必需的环境变量
+# Validate required environment variables
 if [ -z "$ANTHROPIC_API_KEY" ]; then
     echo ""
-    echo "❌ 错误: 缺少必需的环境变量 ANTHROPIC_API_KEY"
+    echo "❌ Error: Missing required environment variable ANTHROPIC_API_KEY"
     echo ""
-    echo "使用方法:"
-    echo "  docker run -d -p 8443:8443 -e ANTHROPIC_API_KEY=your-key litellm-openai-proxy"
+    echo "Usage:"
+    echo "  docker run -d -p 443:443 \\"
+    echo "    -e ANTHROPIC_API_KEY=your-key \\"
+    echo "    -e ANTHROPIC_BASE_URL=your-url \\"
+    echo "    litellm-openai-proxy"
     echo ""
-    echo "获取 API Key: https://console.anthropic.com/"
+    echo "Or use Makefile:"
+    echo "  make run API_KEY=your-key BASE_URL=your-url"
     exit 1
 fi
 
+if [ -z "$ANTHROPIC_BASE_URL" ]; then
+    echo ""
+    echo "❌ Error: Missing required environment variable ANTHROPIC_BASE_URL"
+    echo ""
+    echo "Usage:"
+    echo "  docker run -d -p 443:443 \\"
+    echo "    -e ANTHROPIC_API_KEY=your-key \\"
+    echo "    -e ANTHROPIC_BASE_URL=your-url \\"
+    echo "    litellm-openai-proxy"
+    echo ""
+    echo "Or use Makefile:"
+    echo "  make run API_KEY=your-key BASE_URL=your-url"
+    exit 1
+fi
+
+echo "   Claude API: ${ANTHROPIC_BASE_URL}"
 echo "   API Key: ${ANTHROPIC_API_KEY:0:8}...$(echo ${ANTHROPIC_API_KEY} | tail -c 5)"
 echo ""
 
-# 生成 SSL 证书
-echo "🔐 准备 SSL 证书..."
+# Generate SSL certificate
+echo "🔐 Preparing SSL certificate..."
 if [ ! -f "$SSL_CERT_PATH" ] || [ ! -f "$SSL_KEY_PATH" ]; then
-    echo "   生成自签名证书..."
+    echo "   Generating self-signed certificate..."
     mkdir -p $(dirname "$SSL_CERT_PATH")
 
     openssl req -x509 -newkey rsa:2048 \
@@ -53,54 +71,54 @@ if [ ! -f "$SSL_CERT_PATH" ] || [ ! -f "$SSL_KEY_PATH" ]; then
         -subj "/C=US/ST=CA/L=San Francisco/O=LiteLLM Proxy/CN=api.openai.com" \
         2>/dev/null
 
-    echo "   ✅ SSL 证书生成完成"
+    echo "   ✅ SSL certificate generation complete"
 else
-    echo "   ✅ 使用现有证书"
+    echo "   ✅ Using existing certificate"
 fi
 
-# 处理配置文件
-echo "🔧 生成代理配置..."
+# Process configuration file
+echo "🔧 Generating proxy configuration..."
 CONFIG_TEMPLATE="/app/config/proxy-config.yaml"
 CONFIG_OUTPUT="/tmp/litellm-config.yaml"
 
-# 使用 envsubst 替换环境变量到临时目录（有写权限）
+# Use envsubst to substitute environment variables to temporary directory (with write permission)
 envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_OUTPUT"
 
 if [ ! -f "$CONFIG_OUTPUT" ]; then
-    echo "❌ 配置文件生成失败"
+    echo "❌ Configuration file generation failed"
     exit 1
 fi
 
-echo "   ✅ 配置文件已生成"
+echo "   ✅ Configuration file generated"
 
-# 设置信号处理
+# Set signal handling
 cleanup() {
     echo ""
-    echo "🛑 收到停止信号，正在优雅关闭..."
+    echo "🛑 Received stop signal, gracefully shutting down..."
     if [ ! -z "$LITELLM_PID" ]; then
         kill -TERM "$LITELLM_PID" 2>/dev/null || true
         wait "$LITELLM_PID" 2>/dev/null || true
     fi
-    echo "👋 服务已停止"
+    echo "👋 Service stopped"
     exit 0
 }
 
 trap cleanup SIGTERM SIGINT
 
-# 启动服务
-echo "🚀 启动代理服务..."
+# Start service
+echo "🚀 Starting proxy service..."
 echo ""
-echo "📡 服务地址:"
+echo "📡 Service addresses:"
 echo "   HTTPS: https://localhost:${PORT}"
 echo "   Health: https://localhost:${PORT}/health"
 echo "   Models: https://localhost:${PORT}/v1/models"
 echo ""
 
-echo "🧪 测试命令:"
+echo "🧪 Test command:"
 echo "   curl -k https://localhost:${PORT}/v1/models"
 echo ""
 
-echo "📊 OpenAI SDK 配置:"
+echo "📊 OpenAI SDK configuration:"
 echo "   import openai"
 echo "   client = openai.OpenAI("
 echo "       api_key='any-key',"
@@ -108,7 +126,7 @@ echo "       base_url='https://localhost:${PORT}/v1'"
 echo "   )"
 echo ""
 
-# 启动 LiteLLM（后台运行以便处理信号）
+# Start LiteLLM (run in background for signal handling)
 litellm \
     --config "$CONFIG_OUTPUT" \
     --host "$HOST" \
@@ -120,11 +138,11 @@ litellm \
 
 LITELLM_PID=$!
 
-echo "✅ 代理服务已启动 (PID: $LITELLM_PID)"
+echo "✅ Proxy service started (PID: $LITELLM_PID)"
 echo ""
-echo "💡 现在所有 OpenAI API 请求将自动转发到 Claude!"
-echo "   按 Ctrl+C 停止服务"
+echo "💡 All OpenAI API requests will now be automatically forwarded to Claude!"
+echo "   Press Ctrl+C to stop the service"
 echo ""
 
-# 等待进程
+# Wait for process
 wait "$LITELLM_PID"

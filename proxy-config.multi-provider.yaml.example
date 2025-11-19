@@ -1,0 +1,138 @@
+# LiteLLM Multi-Provider Proxy Configuration Example
+# This example shows how to configure the proxy for multiple LLM providers
+# Copy this file to proxy-config.yaml and adjust based on your needs
+
+# Environment variables you need to set:
+#   For Anthropic/Claude:
+#     ANTHROPIC_API_KEY
+#   For Google Gemini:
+#     GEMINI_API_KEY
+#   For Azure OpenAI:
+#     AZURE_API_KEY
+#     AZURE_API_BASE
+#   For AWS Bedrock:
+#     AWS_ACCESS_KEY_ID
+#     AWS_SECRET_ACCESS_KEY
+#     AWS_REGION_NAME
+#   For Alibaba (通义千问):
+#     ALIBABA_API_KEY
+#   For Zhipu AI (智谱AI):
+#     ZHIPU_API_KEY
+
+model_list:
+  # ============================================
+  # Anthropic Claude Models
+  # ============================================
+  - model_name: gpt-4
+    litellm_params:
+      model: claude-3-5-sonnet-20241022  # Direct Anthropic API call
+      api_key: ${ANTHROPIC_API_KEY}
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: claude-3-5-sonnet-20241022
+      api_key: ${ANTHROPIC_API_KEY}
+
+  # ============================================
+  # Google Gemini Models
+  # ============================================
+  - model_name: gpt-4-turbo
+    litellm_params:
+      model: gemini/gemini-1.5-pro
+      api_key: ${GEMINI_API_KEY}
+
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: gemini/gemini-1.5-flash
+      api_key: ${GEMINI_API_KEY}
+
+  # ============================================
+  # Azure OpenAI Models
+  # ============================================
+  # - model_name: gpt-4
+  #   litellm_params:
+  #     model: azure/your-deployment-name
+  #     api_key: ${AZURE_API_KEY}
+  #     api_base: ${AZURE_API_BASE}
+  #     api_version: "2024-02-15-preview"
+
+  # ============================================
+  # AWS Bedrock Models
+  # ============================================
+  # - model_name: gpt-4
+  #   litellm_params:
+  #     model: bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0
+  #     aws_access_key_id: ${AWS_ACCESS_KEY_ID}
+  #     aws_secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+  #     aws_region_name: ${AWS_REGION_NAME}
+
+  # ============================================
+  # Alibaba Cloud (通义千问) Models
+  # ============================================
+  # - model_name: gpt-3.5-turbo
+  #   litellm_params:
+  #     model: qwen/qwen-turbo
+  #     api_key: ${ALIBABA_API_KEY}
+
+  # - model_name: gpt-4
+  #   litellm_params:
+  #     model: qwen/qwen-max
+  #     api_key: ${ALIBABA_API_KEY}
+
+  # ============================================
+  # Zhipu AI (智谱AI GLM) Models
+  # ============================================
+  # - model_name: gpt-4
+  #   litellm_params:
+  #     model: zhipuai/glm-4
+  #     api_key: ${ZHIPU_API_KEY}
+
+  # ============================================
+  # Cohere Models
+  # ============================================
+  # - model_name: gpt-3.5-turbo
+  #   litellm_params:
+  #     model: command-r
+  #     api_key: ${COHERE_API_KEY}
+
+  # ============================================
+  # Mistral AI Models
+  # ============================================
+  # - model_name: gpt-4
+  #   litellm_params:
+  #     model: mistral/mistral-large-latest
+  #     api_key: ${MISTRAL_API_KEY}
+
+  # ============================================
+  # DeepSeek Models
+  # ============================================
+  # - model_name: gpt-4
+  #   litellm_params:
+  #     model: deepseek/deepseek-chat
+  #     api_key: ${DEEPSEEK_API_KEY}
+
+  # ============================================
+  # Hugging Face Models
+  # ============================================
+  # - model_name: gpt-3.5-turbo
+  #   litellm_params:
+  #     model: huggingface/meta-llama/Llama-2-7b-chat-hf
+  #     api_key: ${HUGGINGFACE_API_KEY}
+
+# General settings
+general_settings:
+  master_key: null
+  disable_auth: true
+  enable_cors: true
+  cors_origins: ["*"]
+  disable_spend_logs: true
+  set_verbose: ${DEBUG:-false}
+
+# LiteLLM settings
+litellm_settings:
+  drop_params: true
+  set_verbose: ${DEBUG:-false}
+  request_timeout: 600
+  num_retries: 3
+  max_parallel_requests: 100
+  disable_health_check: true

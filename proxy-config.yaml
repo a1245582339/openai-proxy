@@ -1,15 +1,15 @@
 # LiteLLM Proxy Configuration
-# 统一配置文件，支持 Docker 容器和 Shell 脚本两种启动方式
+# Unified configuration file, supports both Docker container and Shell script startup methods
 #
-# 环境变量说明：
-#   ANTHROPIC_API_KEY: Claude API Key（必需）
-#   ANTHROPIC_BASE_URL: Claude API 地址（可选，默认使用官方地址）
-#   CLAUDE_MODEL: Claude 模型名称（可选，默认 claude-sonnet-4-5）
-#                 可选值: claude-sonnet-4-5, claude-opus-4, claude-haiku-4 等
-#   DEBUG: 调试模式开关（可选，true/false）
+# Environment variables:
+#   ANTHROPIC_API_KEY: Claude API Key (required)
+#   ANTHROPIC_BASE_URL: Claude API address (optional, defaults to official address)
+#   CLAUDE_MODEL: Claude model name (optional, defaults to claude-sonnet-4-5)
+#                 Available options: claude-sonnet-4-5, claude-opus-4, claude-haiku-4, etc.
+#   DEBUG: Debug mode switch (optional, true/false)
 
 model_list:
-  # GPT-4 系列映射到 Claude 模型
+  # GPT-4 series mapped to Claude model
   - model_name: gpt-4
     litellm_params:
       model: openai/${CLAUDE_MODEL}
@@ -28,50 +28,50 @@ model_list:
       api_key: ${ANTHROPIC_API_KEY}
       api_base: ${ANTHROPIC_BASE_URL}
 
-  # GPT-5 映射（预留）
+  # GPT-5 mapping (reserved)
   - model_name: gpt-5
     litellm_params:
       model: openai/${CLAUDE_MODEL}
       api_key: ${ANTHROPIC_API_KEY}
       api_base: ${ANTHROPIC_BASE_URL}
 
-  # GPT-3.5 系列映射到 Claude 模型
+  # GPT-3.5 series mapped to Claude model
   - model_name: gpt-3.5-turbo
     litellm_params:
       model: openai/${CLAUDE_MODEL}
       api_key: ${ANTHROPIC_API_KEY}
       api_base: ${ANTHROPIC_BASE_URL}
 
-# 通用设置
+# General settings
 general_settings:
-  # 彻底禁用认证，模拟 OpenAI API
+  # Completely disable authentication, simulate OpenAI API
   master_key: null
   disable_auth: true
 
-  # CORS 设置
+  # CORS settings
   enable_cors: true
   cors_origins: ["*"]
 
-  # 模拟 OpenAI 响应格式
+  # Simulate OpenAI response format
   disable_spend_logs: true
 
-  # 调试模式（通过环境变量控制）
+  # Debug mode (controlled via environment variable)
   set_verbose: ${DEBUG}
 
-# LiteLLM 设置
+# LiteLLM settings
 litellm_settings:
-  # 自动删除不支持的参数（解决 reasoning_effort 等参数兼容性）
+  # Automatically drop unsupported parameters (resolves reasoning_effort and other parameter compatibility issues)
   drop_params: true
 
-  # 日志级别
+  # Log level
   set_verbose: ${DEBUG}
 
-  # 超时和重试设置
+  # Timeout and retry settings
   request_timeout: 600
   num_retries: 3
 
-  # 并发设置
+  # Concurrency settings
   max_parallel_requests: 100
 
-  # 禁用后台健康检查（避免 401/403 错误和额外 API 调用）
+  # Disable background health check (avoid 401/403 errors and extra API calls)
   disable_health_check: true
