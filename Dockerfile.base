@@ -1,7 +1,7 @@
-# 预构建基础镜像 - 包含所有系统和Python依赖
-# 这个镜像可以单独构建并推送到镜像仓库，避免每次构建时重新安装依赖
+# Pre-built base image - includes all system and Python dependencies
+# This image can be built separately and pushed to a registry to avoid reinstalling dependencies each time
 #
-# 构建命令:
+# Build commands:
 #   docker build -f Dockerfile.base -t litellm-base:latest .
 #   docker tag litellm-base:latest your-registry/litellm-base:latest
 #   docker push your-registry/litellm-base:latest
@@ -12,13 +12,13 @@ LABEL maintainer="LiteLLM Proxy"
 LABEL description="LiteLLM base image with all dependencies pre-installed"
 LABEL version="1.0.0"
 
-# 设置非 root 用户
+# Set up non-root user
 RUN groupadd -r litellm && useradd -r -g litellm -s /bin/bash litellm
 
-# 设置工作目录
+# Set working directory
 WORKDIR /app
 
-# 使用国内镜像源加速 apt-get，并安装最小依赖
+# Use China mirrors to accelerate apt-get and install minimal dependencies
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources \
     && sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y --no-install-recommends \
@@ -37,14 +37,14 @@ RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debia
         --retries 5 \
     && pip3 cache purge
 
-# 创建必要的目录并设置权限
+# Create necessary directories and set permissions
 RUN mkdir -p /app/certs /app/config /app/logs \
     && chown -R litellm:litellm /app
 
-# 切换到非 root 用户 (为后续层级做准备)
+# Switch to non-root user (preparation for subsequent layers)
 USER litellm
 
-# 设置默认环境变量
+# Set default environment variables
 ENV PORT=8443
 ENV HOST=0.0.0.0
 ENV DEBUG=false

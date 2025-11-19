@@ -86,8 +86,8 @@ While LiteLLM is powerful, it requires configuration and setup. This project pro
 | **Google** | Gemini 1.5 Pro, Gemini 1.5 Flash | `model: gemini/gemini-1.5-pro` |
 | **Azure OpenAI** | GPT-4, GPT-3.5 | `model: azure/your-deployment-name` |
 | **AWS Bedrock** | Claude on Bedrock, Titan, etc. | `model: bedrock/anthropic.claude-3-5-sonnet` |
-| **Alibaba Cloud** | Qwen (通义千问) | `model: qwen/qwen-max` |
-| **Zhipu AI** | GLM-4 (智谱AI) | `model: zhipuai/glm-4` |
+| **Alibaba Cloud** | Qwen (Tongyi Qianwen) | `model: qwen/qwen-max` |
+| **Zhipu AI** | GLM-4 (ChatGLM) | `model: zhipuai/glm-4` |
 | **Mistral AI** | Mistral Large, etc. | `model: mistral/mistral-large-latest` |
 | **DeepSeek** | DeepSeek Chat, Coder | `model: deepseek/deepseek-chat` |
 | **Cohere** | Command R, Command R+ | `model: command-r` |

@@ -1,8 +1,8 @@
 # LiteLLM OpenAI-to-Claude Proxy
-# 生产就绪的 Docker 镜像，支持直接 docker run 使用
+# Production-ready Docker image that supports direct docker run usage
 #
-# 注意: 此版本使用预构建的基础镜像以加快构建速度
-# 要使用此Dockerfile，请先构建基础镜像:
+# Note: This version uses a pre-built base image to speed up builds
+# To use this Dockerfile, first build the base image:
 #   docker build -f Dockerfile.base -t litellm-base:latest .
 #
 # Usage:
@@ -16,31 +16,31 @@ LABEL version="1.0.3"
 LABEL org.opencontainers.image.source="https://github.com/your-org/litellm-openai-proxy"
 LABEL org.opencontainers.image.documentation="https://github.com/your-org/litellm-openai-proxy/README.md"
 
-# 临时切换到 root 用户以复制文件和设置权限
+# Temporarily switch to root user to copy files and set permissions
 USER root
 
-# ===== 复制配置文件和脚本 =====
-# 使用统一的配置文件（支持 Docker 和 Shell 脚本两种启动方式）
+# ===== Copy configuration files and scripts =====
+# Use unified configuration file (supports both Docker and Shell script startup methods)
 COPY proxy-config.yaml /app/config/proxy-config.yaml
 COPY scripts/entrypoint.sh /app/entrypoint.sh
 
-# 设置权限
+# Set permissions
 RUN chmod +x /app/entrypoint.sh \
     && chown -R litellm:litellm /app/config /app/entrypoint.sh
 
-# 切换回非 root 用户
+# Switch back to non-root user
 USER litellm
 
-# 暴露端口
+# Expose ports
 EXPOSE 8443
 EXPOSE 443
 
-# 健康检查
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -k -f https://localhost:${PORT}/health || exit 1
 
-# 设置启动点
+# Set entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
 
-# 默认命令（可以被 docker run 的参数覆盖）
+# Default command (can be overridden by docker run arguments)
 CMD []

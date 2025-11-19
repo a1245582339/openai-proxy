@@ -14,9 +14,9 @@
 #     AWS_ACCESS_KEY_ID
 #     AWS_SECRET_ACCESS_KEY
 #     AWS_REGION_NAME
-#   For Alibaba (通义千问):
+#   For Alibaba (Tongyi Qianwen):
 #     ALIBABA_API_KEY
-#   For Zhipu AI (智谱AI):
+#   For Zhipu AI (ChatGLM):
 #     ZHIPU_API_KEY
 
 model_list:
@@ -67,7 +67,7 @@ model_list:
   #     aws_region_name: ${AWS_REGION_NAME}
 
   # ============================================
-  # Alibaba Cloud (通义千问) Models
+  # Alibaba Cloud (Tongyi Qianwen) Models
   # ============================================
   # - model_name: gpt-3.5-turbo
   #   litellm_params:
@@ -80,7 +80,7 @@ model_list:
   #     api_key: ${ALIBABA_API_KEY}
 
   # ============================================
-  # Zhipu AI (智谱AI GLM) Models
+  # Zhipu AI (ChatGLM) Models
   # ============================================
   # - model_name: gpt-4
   #   litellm_params:
